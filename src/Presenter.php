@@ -251,6 +251,9 @@
 			//Получем список всех тегов
 			$all_tags = $this->get_tags($tpl_string);
 
+			//Сбрасываем счетчики литеральных тегов. Если в документе они были не парными, это может привести к багам
+			$this->literal_count = array();
+
 			//Двигаемся от тега к тегу, по телу документа
 			foreach ($all_tags as $key => &$tag)
 			{
@@ -295,6 +298,8 @@
 			{
 				$result = preg_replace('#\?\>\s*?\<\?php#', " ", $result);
 			}
+			/*$result = str_replace('?><?php', ' ', $result);*/
+
 
 			//Возвращаем откомпилированный шаблон
 			return $result;
