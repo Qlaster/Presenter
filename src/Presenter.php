@@ -24,7 +24,13 @@
 		//Счетчик открытых/закрытых литеральных тегов. $literal_count['название тега'] = количество открытий (вложений)
 		private $literal_count = array();
 
-
+		/*
+		 *
+		 * Конструктор
+		 * @param array configuration
+		 * @return $this
+		 *
+		 */
 		public function __construct($config=[])
 		{
 			$this->config['left_delimiter']		= "{";		// the left delimiter for template tags
@@ -80,11 +86,13 @@
 			$this->config['compilation']['folder']	= sys_get_temp_dir().'/presenter';
 			$this->config['compilation']['extent']	= 'php';
 			$this->config['compilation']['nobody'] 	= true;		//Автотрансляция тегов в php код неизвестных тегов. Предполагается, что если мы не смогли определить что это - то это php
+			$this->config['compilation']['mutex']   = false;
 
 			//Параметры управления шаблонами
 			$this->config['templates']['folder']	= "";	//Явное указание директории с шаблонами
 
 			//Жёсткая замена тегов
+			$this->config['replace']	= [];
 			#$this->config['replace']['demotest']	= 'replace_demo_test';
 
 			//Перезапишем стандартные параметры переданными значениями
@@ -92,9 +100,18 @@
 
 			//Заменим переменную окружения на реальный путь
 			$this->config['compilation']['folder'] = str_replace('%TEMP%', sys_get_temp_dir().'/', $this->config['compilation']['folder']);
+			return $this;
 		}
 
-		//Указывает, над каким файлом выполнить операции (html файл шаблона)
+
+		/*
+		 *
+		 * Указывает, над каким файлом выполнить операции (html файл шаблона)
+		 *
+		 * @param string html file link
+		 * @return $this
+		 *
+		 */
 		public function file($file_link)
 		{
 			$this->file_time = [];
@@ -120,17 +137,32 @@
 			return $this;
 		}
 
-		//Указывает, как добраться до ресурсов html файла по url.
+		/*
+		 *
+		 * Указывает, как добраться до ресурсов html файла по url, внутри самого html
+		 * Проще говоря - ссылка на файл со стороны браузера
+		 * (необязательно)
+		 *
+		 * @param string url link
+		 * @return $this
+		 *
+		 */
 		public function themelink($link)
 		{
 			$this->base_link = $link;
 			return $this;
 		}
 
-
-		//Метод считает открытие/закрытие литеральных тегов. Ты отправляешь ему тег, он определеяет, литеральный он или нет. Если литеральный, то сморит, открытый или закртытый.
-		//Если открытый - увеличивает счетчик. Если закрытый - уменьшает. Если тег пуст, то возвращает true/false в зависимости от того, открыт/закрыт хоть один литеральный тег.
-		//Данный метод очень удобен для фильтрации тегов.
+		/*
+		 *
+		 * Метод считает открытие/закрытие литеральных тегов. Ты отправляешь ему тег, он определеяет, литеральный он или нет. Если литеральный, то сморит, открытый или закртытый.
+		 * Если открытый - увеличивает счетчик. Если закрытый - уменьшает. Если тег пуст, то возвращает true/false в зависимости от того, открыт/закрыт хоть один литеральный тег.
+		 * Данный метод очень удобен для фильтрации тегов.
+		 *
+		 * @param string literal tag
+		 * @return bool true|false
+		 *
+		 */
 		private function literal_count($literal_tag='')
 		{
 			//Если не указали тег, то проверяем на открытость литеральных тегов
@@ -152,9 +184,9 @@
 
 				//Если тег одновременно открыли и закрыли - то не нужно менять состояние (например такой тег <!-- C -->)
 				if  (
-						( mb_substr($literal_tag, 0, mb_strlen($syntax['open']) ) == $syntax['open'] )
+						( substr($literal_tag, 0, strlen($syntax['open']) ) == $syntax['open'] )
 							and
-						( mb_substr($literal_tag,  -mb_strlen($syntax['close']) ) == $syntax['close'] )
+						( substr($literal_tag,  -strlen($syntax['close']) ) == $syntax['close'] )
 					)
 				{
 					//Не смотря на то, что тег не меняет счетик открытых/закрытых тегов, это все таки литеральный (цитируемый тег)
@@ -164,29 +196,29 @@
 
 				if (strpos($literal_tag, $syntax['open']) === 0)
 				{
-
 					if (! isset($this->literal_count[$tag_name]) ) $this->literal_count[$tag_name] = 0;
-
 					$this->literal_count[$tag_name]++;
-
 					return true;
-					break;
 				}
 
 				if (strpos($literal_tag, $syntax['close']) === 0)
 				{
 					if (! isset($this->literal_count[$tag_name]) ) $this->literal_count[$tag_name] = 0;
-
-					$this->literal_count[$tag_name]--;
-					if ($this->literal_count[$tag_name]<0)	$this->literal_count[$tag_name] = 0;
-
+					if (--$this->literal_count[$tag_name]<0) $this->literal_count[$tag_name] = 0;
 					return true;
-					break;
 				}
 			}
 		}
 
 
+		/*
+		 *
+		 * Компилировать tpl строку (строку html с тегами)
+		 *
+		 * @param string tpl html code
+		 * @return string html/php code string
+		 *
+		 */
 		private function compile_resource($tpl_string)
 		{
 			$htmlhead = strstr($tpl_string, "<head>");
@@ -197,7 +229,7 @@
 			//Доп. код в заголовок
 			if ($this->head)		$head .= "	\r\n".$this->head;
 
-			if ($head)
+			if (isset($head))
 				$tpl_string = str_replace($htmlhead, $htmlhead .= $head, $tpl_string);
 
 			preg_match_all("<script.*?src=[\"'](.*?)[\"'].*?>", $tpl_string, $scripts_tags);
@@ -210,10 +242,10 @@
 			foreach ($resource_tags[1] as $_iterator => &$_stript_tag)
 			{
 				//Для этого тега уже был поставлен симлинк, пропустим его
-				if (mb_strpos($_stript_tag, $this->config['url_link_tag']) === 0) continue;
+				if (strpos($_stript_tag, $this->config['url_link_tag']) === 0) continue;
 				//Если указан полный путь на внешний ресурс - нам торже не требуется учавствовать в этом
-				if (mb_strpos($_stript_tag, 'http://') === 0) continue;
-				if (mb_strpos($_stript_tag, 'https://') === 0) continue;
+				if (strpos($_stript_tag, 'http://') === 0) continue;
+				if (strpos($_stript_tag, 'https://') === 0) continue;
 
 				//Создадим правила замены для ресрсов
 				$resource_replace['search'][$_iterator] = $resource_tags[0][$_iterator];
@@ -229,7 +261,14 @@
 		}
 
 
-		//Метод компилирует строку (теги LITERAL учитываются)
+		/*
+		 *
+		 * Метод компилирует строку (теги LITERAL учитываются)
+		 *
+		 * @param string tpl html code
+		 * @return string html/php code string
+		 *
+		 */
 		public function compile_data($tpl_string)
 		{
 			$result = '';
@@ -258,14 +297,14 @@
 			foreach ($all_tags as $key => &$tag)
 			{
 				//Узнаем позицию текущего тега
-				$pos = mb_strpos($tpl_string, $tag);
+				$pos = strpos($tpl_string, $tag);
 				//Переносим часть документа до тега в результат (не обрабатываемые даннные)
-				$result .= mb_substr($tpl_string, 0, $pos);
+				$result .= substr($tpl_string, 0, $pos);
 				//Удаляем данные до тега и сам тег
-				$tpl_string = mb_substr($tpl_string, $pos+mb_strlen($tag));
+				$tpl_string = substr($tpl_string, $pos+strlen($tag));
 
 				//Если нас попросили не выводить комментарии - так же их пропустим
-				if ((mb_substr($tag, 0, 4) == '<!--') and ($this->config['skip_comments'])) continue;
+				if ((substr($tag, 0, 4) == '<!--') and ($this->config['skip_comments'])) continue;
 
 				//Обработка литерального тега
 				$literal_tag = $this->literal_count($tag);
@@ -294,12 +333,11 @@
 
 
 			//Удаляем избыточные теги. Если в опциях установлен флажек.
-			if ($this->config['php_mutex'])
+			if ($this->config['compilation']['mutex'])
 			{
 				$result = preg_replace('#\?\>\s*?\<\?php#', " ", $result);
 			}
 			/*$result = str_replace('?><?php', ' ', $result);*/
-
 
 			//Возвращаем откомпилированный шаблон
 			return $result;
@@ -307,7 +345,14 @@
 		}
 
 
-		//Соберем TPL файл со всеми зависимостями
+		/*
+		 *
+		 * Соберем TPL файл со всеми зависимостями
+		 *
+		 * @param string link tpl file
+		 * @return string document
+		 *
+		 */
 		private function tpl_get_contents($tpl_file)
 		{
 			//Запишем последнее время изменения файла TPL
@@ -358,15 +403,26 @@
 		}
 
 
-		//Ты ей () тег, а она тебе скомпилированный php код этого тега
+		/*
+		 *
+		 * Компиляция тега
+		 * Ты ей () тег, а она тебе скомпилированный php код этого тега
+		 *
+		 * @param string tag (tpl or html)
+		 * @return string compiled expression
+		 *
+		 */
 		private function compile_tag($tag)
 		{
 
 			//Очистим делимитеры тега.
-			$tag = mb_substr($tag, mb_strlen($this->config['left_delimiter']));
-			$tag = mb_substr($tag, 0, mb_strlen($tag)-mb_strlen($this->config['right_delimiter']));
+			//~ $tag = substr($tag, strlen($this->config['left_delimiter']));
+			//~ $tag = substr($tag, 0, strlen($tag)-strlen($this->config['right_delimiter']));
+			//~ $tag = trim($tag);
 
-			$tag = trim($tag);
+			//Очистим делимитеры тега (более оптимизированная версия кода)
+			$tag = ltrim($tag, $this->config['left_delimiter']);
+			$tag = rtrim($tag, $this->config['right_delimiter']);
 
 			//Первым делом проверяем на статические теги
 			if ( array_key_exists($tag, $this->config['static']) )
@@ -389,7 +445,7 @@
 				if ( strpos($tag, $key) === 0)
 				{
 					//Вырезаем указатель переменной вместе с asis
-					$tag = mb_substr( $tag, mb_strlen($key));
+					$tag = substr( $tag, strlen($key));
 						//Компилируем переменную по правилам таблицы компиляции для переменной с необходимостью экранирования
 					return $value['open']
 							. $tag .
@@ -400,8 +456,10 @@
 
 
 			//Этап 2. Это управляющее выражение?
-			$expression = mb_substr( $tag, 0, mb_strpos($tag, ' ') );
-			if ($expression == '') $expression = mb_substr( $tag, 0, mb_strpos($tag, '(') ); //ЭТО Я ПИСАЛ???? ЧТО Я ИМЕЛ ВВИДУ??? ЗАЧЕМ????
+			$expression = substr( $tag, 0, strpos($tag, ' ') );
+			if ($expression == '') $expression = substr( $tag, 0, strpos($tag, '(') ); //Спорный участок кокда
+			//~ $expression = strstr($tag, ' ', true);
+			//~ if ($expression == '') $expression = strstr($tag, '(', true);  //Спорный участок кокда
 
 			if ($expression != '')
 			{
@@ -409,7 +467,7 @@
 				if (array_key_exists($expression, $this->config['snippets']))
 				{
 					//отрезаем управляющую структуру в теге (что бы потом заменить её на необходимую для php)
-					$tag = mb_substr( $tag, mb_strlen($expression) +1 ); //-1 - не забыть
+					$tag = substr( $tag, strlen($expression) +1 ); //-1 - не забыть
 
 					return $this->config['snippets'][$expression]['open']
 						   . $tag .
@@ -427,10 +485,16 @@
 		}
 
 
-		//Функции (а точнее, метод класса) передается список переменных, которые должны быть выведены на шаблон. Метод компилирует шаблон и выводит его браузеру. Источник шаблона берется в методе $tpl_file.
+		/*
+		 *
+		 * В метод передается список переменных, которые должны быть выведены на шаблон. Метод компилирует шаблон и выводит его браузеру. Источник шаблона берется в методе $tpl_file.
+		 *
+		 * @param array content data
+		 * @return full html document and return to browser
+		 *
+		 */
 		public function display($vars_array = array())
 		{
-
 			$result = '';
 			//Запоминаем код вывода ошибок
 			$error_reporting = error_reporting();
@@ -474,11 +538,19 @@
 
 
 
-		//Компилируем шаблон и выводим его как строку. Источник шаблона берется в свойстве $tpl_file.
+
+		/*
+		 *
+		 * Компилируем шаблон и выводим его как строку. Источник шаблона берется в свойстве $tpl_file.
+		 *
+		 * @param
+		 * @return string compile html
+		 *
+		 */
 		public function compile()
 		{
 			//Если файл шаблона не найден
-			if (! file_exists($this->file_link)) return false;
+			if (! is_readable($this->file_link)) return false;
 
 			//Если каталог пуст - устанавливаем текущий. А что еще остается делать?
 			if ($this->config['compilation']['folder'] == '') $this->config['compilation']['folder'] = getcwd();
@@ -511,25 +583,35 @@
 				return false;
 			}
 
-			$this->Clear_Cache_File($this->file_link);
+			$this->clear_cache_file($this->file_link);
 
 			// Пишем содержимое в файл,
 			// и флаг LOCK_EX для предотвращения записи данного файла кем-нибудь другим в данное время
 			file_put_contents($cache_file, $compil, LOCK_EX);
 
-			if (file_exists($cache_file))
-			{
-				return $cache_file; //если все хорошо - возвращаем ссылку на скомпилированный шаблон
-			}
-			else
-			{
-				return false;
-			}
+			//если все хорошо - возвращаем ссылку на скомпилированный шаблон
+			return file_exists($cache_file) ? $cache_file : false;
+
+			//~ if (file_exists($cache_file))
+			//~ {
+				//~ return $cache_file;
+			//~ }
+			//~ else
+			//~ {
+				//~ return false;
+			//~ }
 
 		}
 
 
-		//Получить список переменных шаблона
+		/*
+		 *
+		 * Получить список переменных шаблона
+		 *
+		 * @param
+		 * @return array list vars
+		 *
+		 */
 		public function vars()
 		{
 			//Получаем все теги шаблонизатора
@@ -554,7 +636,16 @@
 
 
 
-		//Список тегов, которые будут обработаны шаблонизатором
+
+		/*
+		 *
+		 * Список тегов, которые будут обработаны шаблонизатором
+		 * (только теги шаблонизатора)
+		 *
+		 * @param
+		 * @return array tag list
+		 *
+		 */
 		public function tag_list()
 		{
 			$this->literal_count = array();
@@ -564,12 +655,14 @@
 
 			//Загружаем содержимое файла
 			$tpl_string = $this->tpl_get_contents($this->file_link);
-			$tpl_string = str_replace(array("\r\n", "\r", "\n"), '', $tpl_string);
+			$tpl_string = str_replace(["\r", "\n"], '', $tpl_string);
 
 			//Получем список всех тегов
 			return $this->get_tags($tpl_string);
 
-			//TODO: Прежняя версия кода. Устарело
+			//TODO: DEPRICATED
+			/*
+			//Прежняя версия кода. Устарело
 			//Получем список всех тегов
 			$all_tags = $this->get_tags($tpl_string);
 
@@ -594,10 +687,19 @@
 			}
 
 			return (array) $result;
+			*/
 		}
 
 
-		//Метод ищет в строке теги, и возвращает их массивом.
+		/*
+		 *
+		 * Метод ищет в строке теги, и возвращает их массивом.
+		 * (все теги, попадающие под патерн, и html и tpl)
+		 *
+		 * @param string html string
+		 * @return array tag list
+		 *
+		 */
 		public function get_tags($string)
 		{
 			if ($string == '') return array();
@@ -629,43 +731,62 @@
 
 				if (preg_match_all($math, $value, $buflist))
 				{
-					$result = array_merge($result, $buflist[0]);
+					foreach ($buflist[0] as $newtag) $result[] = $newtag;
+					//Удивительно, но код выше ^^^ работает быстрее, чем объединять через специализированную функцию:
+					//~ $result = array_merge($result, $buflist[0]);
 				}
 				else
 				{
 					$result[] = $value;
 				}
-			}
 
-			return (array) $result;
+
+			}
+			return $result;
 		}
 
 
-		//Метод возвращает true, если указанная строка содержит тег оформленный в соответствии с правилами синтаксического оформления тегов шаблонизатора.
-		//Проводится лишь поверхностный синтаксический анализ.
+		/*
+		 *
+		 * Метод возвращает true, если указанная строка содержит тег оформленный в соответствии с правилами синтаксического оформления тегов шаблонизатора.
+		 * Проводится лишь поверхностный синтаксический анализ.
+		 *
+		 * @param string tag
+		 * @return bool true|false
+		 *
+		 */
 		private function is_tag($tag)
 		{
 			$tag = trim($tag);
-
-			if  (
-					( mb_substr($tag, 0, mb_strlen($this->config['left_delimiter']) ) == $this->config['left_delimiter']  )
-						and
-					( mb_substr($tag,  -mb_strlen($this->config['right_delimiter']) ) == $this->config['right_delimiter'] )
-			    )
-			{
-				return true;
-			}
-			else
-			{
-				return false;
-			}
+			return	( substr($tag, 0, strlen($this->config['left_delimiter']) ) == $this->config['left_delimiter']  )
+					and
+					( substr($tag,  -strlen($this->config['right_delimiter']) ) == $this->config['right_delimiter'] );
+			//~ if  (
+					//~ ( substr($tag, 0, strlen($this->config['left_delimiter']) ) == $this->config['left_delimiter']  )
+						//~ and
+					//~ ( substr($tag,  -strlen($this->config['right_delimiter']) ) == $this->config['right_delimiter'] )
+			    //~ )
+			//~ {
+				//~ return true;
+			//~ }
+			//~ else
+			//~ {
+				//~ return false;
+			//~ }
 		}
 
 
-
-		//Метод генерирует имя скомпилированно tpl шаблона.
-		//$filename - имя файла шаблона. $all_path - если true - то добавлять к сгенерированному имени файла путь до каталога.
-		private function compile_gen_filename($filename, $all_path=true)
+		/*
+		 *
+		 * Метод генерирует имя скомпилированно tpl шаблона.
+		 * $filename - имя файла шаблона. $full_path - если true - то добавлять к сгенерированному имени файла путь до каталога.
+		 *
+		 * @param string filename
+		 * @param bool full_path
+		 * @return string filename
+		 *
+		 */
+		private function compile_gen_filename($filename, $full_path=true)
 		{
 			if (file_exists($filename))
 			{
@@ -680,17 +801,26 @@
 				$filename = str_replace(DIRECTORY_SEPARATOR, '-', $filename);
 				$filename = $filename . "~$edit_date." . $this->config['compilation']['extent'];
 
-				//Если попросили указать полный путь до файла
-				if ($all_path)
-					$filename = $this->config['compilation']['folder'].'/'. $filename;
+				//Если попросили указать полный путь до файла - вернем с директорией. Иначе просто имя файла
+				return $full_path ? $this->config['compilation']['folder'].DIRECTORY_SEPARATOR.$filename : $filename;
 
-				return $filename;
+				//~ if ($full_path)
+					//~ $filename = $this->config['compilation']['folder'].'/'. $filename;
+
+				//~ return $filename;
 			}
 
 		}
 
 
-		//Очищает все версии кеша шаблона $tlp_filename. Опять же - потенциально опасна.
+		/*
+		 *
+		 * Очищает все версии кеша шаблона $tlp_filename. Опять же - потенциально опасна.
+		 *
+		 * @param string tlp_filename
+		 * @return bool true|false
+		 *
+		 */
 		private function clear_cache_file($tlp_filename)
 		{
 			//Выделяем имя tlp шаблона
@@ -707,9 +837,10 @@
 			{
 				if (file_exists($filename))
 				{
-					unlink($filename);
+					return unlink($filename);
 				}
 			}
 		}
+
 	}
 
