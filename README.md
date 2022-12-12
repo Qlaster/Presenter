@@ -8,19 +8,72 @@ Ultra-fast and convenient templating engine
 ### Быстрый старт
 
 
-##### Подключение и вывод файла 
+##### Подключение и вывод файла
 ```php
+use QyberTech\Presenter;
+
 $P = new Presentor();
 $P->file("themes/index.html")->display();
 ```
 
-##### Вывод контента 
+##### Вывод контента
 ```php
+use QyberTech\Presenter;
+
 $content['title'] = 'Title';
 $content['copyright'] = 'Copyright Year';
 
 $P = new Presentor();
 $P->file("themes/index.html")->display($content);
+```
+
+##### Для явного указания http пути к шаблону, можно использовать themelink:
+```php
+$P->file("themes/index.html")->themelink('/themes/myfolder')->display($content);
+```
+
+##### Получить все теги в документе:
+```php
+$P->file("themes/index.html")->get_tags();
+```
+
+##### Получить теги, которые шаблонизатор намерен обработать:
+```php
+$P->file("themes/index.html")->tag_list();
+```
+
+##### Добавить в секцию head свое содержимое:
+```php
+$P->head = "<link rel="icon" type="image/x-icon" href="/images/favicon.ico">";
+```
+
+##### Добавить тег base в секцию head со ссылкой на корень сайта:
+```php
+$P->base_html = true;
+```
+
+##### Пропустить все комментарии (\<!--- -->) при выводе в браузер:
+```php
+$P->config['skip_comments'] = true;
+```
+или во время создания
+```php
+$P = new Presentor(['skip_comments'=>true]);
+```
+
+##### Переназначить директорию для кешированных шаблонов (по умолчанию - системная временная директория, полученная через sys_get_temp_dir()):
+```php
+$P->config['compilation']['folder'] = '/custom/tmp/folder/';
+```
+или во время создания
+```php
+$P = new Presentor(['compilation'=>['folder'=>'/custom/tmp/folder/']]);
+```
+
+##### Жесткая замена
+Шаблонизатор позволяет проводить жесткую замену строк игнорируя литеральные установки. Что бы использовать функцию, передайте replace параметры в конфигурации
+```php
+$P->config['replace']['find-string'] = 'replace-string';
 ```
 
 
@@ -46,7 +99,7 @@ $P->file("themes/index.html")->display($content);
 ```php
 {;$x = 1}
 ```
-или 
+или
 ```php
 {($x = 1)}
 ```
@@ -70,12 +123,12 @@ $P->file("themes/index.html")->display($content);
 ##### Цикл foreach
 Циклический проход по списку
 ```html
-{foreach $slider['main']['list'] as $value} 
+{foreach $slider['main']['list'] as $value}
 	<li class="slider">
 		<a href="{$value['link']}">
 			<img src="{$value['image']}" alt="{$value['info']}" />
 		</a>
-	</li> 
+	</li>
 {end}
 ```
 
@@ -111,12 +164,18 @@ $P->file("themes/index.html")->display($content);
 ```
 
 ##### Вызов функций окружения и механизмов php
-Вы можете использовать встроеные функции вашего окружения и самого php. 
+Вы можете использовать встроеные функции вашего окружения и самого php.
 > Замечание! Прозрачная трансляция тегов будет работать только если включена опция config['compilation']['nobody']
 ```php
 {phpinfo()}
 {inc($i)}
 ```
+Для вывода результатов функции можно использовать:
+```php
+{= inc($i)}
+```
+> Замечание! Пробел после знака равенства обязателен
+
 
 ##### Относительная ссылка ~/ на файлы ресурсов шаблона
 Если понадобиться путь до директории, где лежит html (например, для подключения ресурсов)
@@ -126,8 +185,9 @@ $P->file("themes/index.html")->display($content);
 <script src="~/js/jquery-2.1.1.js"></script>
 ```
 
-##### Подключение внешнего фрагмента html 
-Шаблон можно нарезать на фрагменты и подключить следующим образом 
+##### Подключение внешнего фрагмента html
+Шаблон можно нарезать на фрагменты и подключить в нужные места документа. Нет ограничений на количество и иерархию вложений.
+ Пример реализации:
 ```php
 {require "../section/menu.html"}
 ```
@@ -135,5 +195,3 @@ $P->file("themes/index.html")->display($content);
 ```php
 {section "../section/menu.html"}
 ```
-
-
