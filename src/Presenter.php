@@ -52,6 +52,8 @@
 			$this->config['snippets']['elseif']	['close']	= ') { ?>';
 			$this->config['snippets']['=']		['open']	= '<?php echo (';
 			$this->config['snippets']['=']		['close']	= ');?>';
+			$this->config['snippets']['?']		['open']	= '<?php if (';
+			$this->config['snippets']['?']		['close']	= ') { ?>';
 
 
 			//Переменные
@@ -381,7 +383,7 @@
 					//Заменяем
 					foreach ($require_pattern as $index => $pattern)
 					{
-						$tpl_content = null;
+						$tpl_content = '';
 
 						if (is_file($this->file_path.$require_file[$index]))
 						{
@@ -451,8 +453,8 @@
 
 
 			//Этап 2. Это управляющее выражение?
-			$expression = substr( $tag, 0, strpos($tag, ' ') );
-			if ($expression == '') $expression = substr( $tag, 0, strpos($tag, '(') ); //Спорный участок кокда
+			$expression = substr( $tag, 0, stripos($tag, ' ') );
+			if ($expression == '') $expression = substr( $tag, 0, strpos($tag, '(') ); //Спорный участок кода
 			//~ $expression = strstr($tag, ' ', true);
 			//~ if ($expression == '') $expression = strstr($tag, '(', true);  //Спорный участок кокда
 
@@ -665,7 +667,12 @@
 
 			//~ $math = "#(\\$L(.*?)\\$R)|(\<(.*?)\>)#";	//|(\<!--(.*?)--\>)
 			//~ $math = "#(\\$L(.*?)\\$R)|(<!--(.*?)-->)|(\<(.*?)\>)#";	//|(\<!--(.*?)--\>)
-			$math = "/\s*(\\$L(.*?)\\$R)|(<!--(.*?)-->)|(\<\?php(.*?)\?\>)|(\<(.*?)\>)\s*/s";
+			$math = "/\s*(\\$L(.*?)\\$R)|(<!--(.*?)-->)|(\<\?php(.*?)\?\>)|(\<(.*?)\>)\s*/s"; //TODO: Final tested version
+			//~ $math = "/\s*(\\$L(.*?)\\$R)|(<!--(.*?)-->)|(\<\?php(.*?)\?\>)|(\<\s*\/?\s*[\w:]+(?:\s+[^>]*?)?\>)/s"; //TODO: очень скользкий лед
+			//~ $math = "/\s*(\\$L(.*?)\\$R)|(<!--(.*?)-->)|(\<\?php(.*?)\?\>)|(\<\s*\/?\s*[\w:]+(?:\s+(?:[^\"'>]|\"[^\"]*\"|'[^']*'|\{[^}]*\})?)*\>)/s"; //non work
+			//~ $math = "/\s*(\\$L(.*?)\\$R)|(<!--(.*?)-->)|(\<\?php(.*?)\?\>)|(\<\s*\/?\s*[\w:]+(?:\s+(?:[^\"'>]|\"[^\"]*\"|'[^']*'|\".$L."[^}]*\})?)*\>)/s"; // not work
+			$math = "/\s*(\\$L(.*?)\\$R)|<!--(.*?)-->|<\\?php(.*?)\\?>|<\\s*\/?\\s*[\\w:]+(?:\\s+(?:[^>\\$L\\s]+|\\$L.*?\\$R))*\\s*>/s"; //Marty!
+
 
 			if (preg_match_all($math, $string, $list))
 			{
